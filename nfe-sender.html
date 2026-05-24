@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NFE Sender</title>
+  <!-- sem biblioteca externa — OAuth redirect puro -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #f2f2f7;
+      --card:        #ffffff;
+      --accent:      #007aff;
+      --accent2:     #0056b3;
+      --green:       #34c759;
+      --red:         #ff3b30;
+      --orange:      #ff9500;
+      --t1:          #1c1c1e;
+      --t2:          #6c6c70;
+      --t3:          #aeaeb2;
+      --border:      #e5e5ea;
+      --shadow:      0 2px 12px rgba(0,0,0,.07);
+      --radius:      14px;
+      --font:        -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1e; --card: #2c2c2e;
+        --t1: #f5f5f7; --t2: #aeaeb2; --t3: #636366;
+        --border: #38383a;
+      }
+    }
+
+    body { font-family: var(--font); background: var(--bg); color: var(--t1); min-height: 100vh; }
+
+    /* ---- HEADER ---- */
+    .hdr {
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex; align-items: center; gap: 12px;
+      position: sticky; top: 0; z-index: 200;
+    }
+    @media (prefers-color-scheme: dark) {
+      .hdr { background: rgba(28,28,30,.85); }
+    }
+    .hdr-icon {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: linear-gradient(145deg,#ff6b6b,#ff3b30);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; flex-shrink: 0;
+    }
+    .hdr-title { font-size: 16px; font-weight: 700; }
+    .hdr-sub   { font-size: 12px; color: var(--t2); }
+
+    /* ---- LAYOUT ---- */
+    .layout {
+      display: flex; gap: 20px;
+      max-width: 1100px; margin: 0 auto;
+      padding: 24px 20px;
+    }
+
+    .sidebar { width: 248px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
+    .main    { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+
+    @media (max-width: 760px) {
+      .layout { flex-direction: column; padding: 14px; }
+      .sidebar { width: 100%; }
+      .row2 { grid-template-columns: 1fr !important; }
+    }
+
+    /* ---- CARD ---- */
+    .card {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 16px;
+    }
+    .card-label {
+      font-size: 11.5px; font-weight: 700; color: var(--t2);
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px;
+    }
+
+    /* ---- CONNECTIONS ---- */
+    .conn-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+    }
+    .conn-row:first-of-type { padding-top: 0; }
+    .conn-row:last-of-type  { border: none; padding-bottom: 0; }
+    .conn-ico {
+      width: 30px; height: 30px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; flex-shrink: 0;
+    }
+    .ico-ai      { background: #10a37f1a; }
+    .ico-outlook { background: #0078d41a; }
+    .conn-name   { font-size: 13.5px; font-weight: 500; }
+    .conn-st     { font-size: 11.5px; color: var(--t2); }
+    .conn-st.ok  { color: var(--green); }
+    .pill-btn {
+      margin-left: auto; font-size: 12px; font-weight: 500;
+      padding: 5px 12px; border-radius: 20px; border: none; cursor: pointer;
+      transition: .15s;
+    }
+    .pill-btn.cta  { background: var(--accent); color: #fff; }
+    .pill-btn.done { background: var(--border); color: var(--t2); }
+
+    /* ---- SUMMARY ---- */
+    .sum-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 13px; }
+    .sum-k   { color: var(--t2); }
+    .sum-v   { font-weight: 500; }
+    .amount-big { font-size: 22px; font-weight: 800; color: var(--green); }
+
+    /* ---- UPLOAD ---- */
+    .upload-box {
+      border: 2px dashed var(--border); border-radius: 12px;
+      padding: 28px 20px; text-align: center; cursor: pointer;
+      transition: .2s; background: var(--bg); position: relative;
+    }
+    .upload-box:hover, .upload-box.over { border-color: var(--accent); background: #007aff08; }
+    .upload-box input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .up-ico  { font-size: 32px; margin-bottom: 6px; }
+    .up-txt  { font-size: 14px; font-weight: 500; }
+    .up-hint { font-size: 12px; color: var(--t2); margin-top: 3px; }
+
+    .preview-wrap { position: relative; display: none; }
+    .preview-wrap img { max-width: 100%; max-height: 180px; border-radius: 10px; object-fit: contain; }
+    .rm-img {
+      position: absolute; top: 6px; right: 6px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(0,0,0,.55); color: #fff;
+      border: none; cursor: pointer; font-size: 11px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ---- FORM ---- */
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .fld  { display: flex; flex-direction: column; gap: 5px; }
+    .fld label { font-size: 11px; font-weight: 700; color: var(--t2); text-transform: uppercase; letter-spacing: .3px; }
+    .fld input, .fld select, .fld textarea {
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 9px; padding: 9px 11px;
+      font-size: 14px; font-family: var(--font); color: var(--t1);
+      outline: none; transition: border-color .15s; width: 100%;
+    }
+    .fld input:focus, .fld select:focus, .fld textarea:focus { border-color: var(--accent); }
+    .fld textarea { resize: vertical; min-height: 108px; line-height: 1.55; }
+
+    /* ---- CHIPS ---- */
+    .chips {
+      display: flex; flex-wrap: wrap; gap: 7px;
+      padding: 9px 10px;
+      background: var(--bg); border: 1.5px solid var(--border); border-radius: 9px;
+      min-height: 42px; align-items: center;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--accent); color: #fff;
+      padding: 3px 11px; border-radius: 20px;
+      font-size: 12.5px; font-weight: 500; cursor: default;
+    }
+    .chip.moved { background: var(--orange); }
+    .chip-rm { font-size: 10px; opacity: .75; cursor: pointer; border: none; background: none; color: inherit; padding: 0; }
+    .chip-rm:hover { opacity: 1; }
+    .chips-empty { font-size: 13px; color: var(--t3); }
+
+    /* ---- BTNS ---- */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 11px 18px; border-radius: 10px; border: none;
+      font-size: 14px; font-weight: 500; font-family: var(--font);
+      cursor: pointer; transition: .15s; white-space: nowrap;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-blue  { background: var(--accent); color: #fff; }
+    .btn-blue:hover:not(:disabled)  { background: var(--accent2); }
+    .btn-gray  { background: var(--border); color: var(--t1); }
+    .btn-gray:hover:not(:disabled)  { filter: brightness(.95); }
+    .btn-red   { background: #ff3b3012; color: var(--red); }
+    .btn-red:hover:not(:disabled)   { background: #ff3b3022; }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-green:hover:not(:disabled) { filter: brightness(.9); }
+    .btn-sm { padding: 7px 14px; font-size: 13px; }
+
+    /* ---- ACTIONS BAR ---- */
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+    /* ---- SPINNER ---- */
+    .spin {
+      width: 15px; height: 15px;
+      border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
+      border-radius: 50%; animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- TOAST ---- */
+    #toasts {
+      position: fixed; bottom: 20px; right: 20px;
+      display: flex; flex-direction: column; gap: 8px; z-index: 9999;
+    }
+    .toast {
+      background: #1c1c1e; color: #fff;
+      padding: 11px 16px; border-radius: 10px;
+      font-size: 13.5px; display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.3);
+      animation: tslide .25s ease;
+    }
+    .toast.ok  { border-left: 3px solid var(--green); }
+    .toast.err { border-left: 3px solid var(--red); }
+    .toast.inf { border-left: 3px solid var(--accent); }
+    .toast.wrn { border-left: 3px solid var(--orange); }
+    @keyframes tslide { from { transform: translateY(16px); opacity: 0; } }
+
+    /* ---- MODAL ---- */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); backdrop-filter: blur(6px);
+      z-index: 500; align-items: center; justify-content: center;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--card); border-radius: 18px;
+      padding: 26px; width: min(420px, 95vw);
+      box-shadow: 0 24px 64px rgba(0,0,0,.28);
+    }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .modal-desc  { font-size: 14px; color: var(--t2); margin-bottom: 18px; line-height: 1.5; }
+    .modal-foot  { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+
+    .info-box {
+      background: #007aff0e; border: 1px solid #007aff2a;
+      border-radius: 9px; padding: 11px; font-size: 12.5px; color: var(--accent);
+      line-height: 1.6; margin-top: 10px;
+    }
+
+    details summary { cursor: pointer; font-size: 12px; color: var(--t2); margin-top: 10px; }
+
+    .verif-ok  { color: var(--green); font-size: 12.5px; font-weight: 500; }
+    .verif-wrn { color: var(--orange); font-size: 12.5px; font-weight: 500; }
+  </style>
+</head>
+<body>
+
+<!-- ====== HEADER ====== -->
+<header class="hdr">
+  <div class="hdr-icon">📋</div>
+  <div>
+    <div class="hdr-title">NFE Sender</div>
+    <div class="hdr-sub">Terapia · paresobo@gmail.com</div>
+  </div>
+</header>
+
+<!-- ====== TOASTS ====== -->
+<div id="toasts"></div>
+
+<!-- ====== MODAL: OpenAI ====== -->
+<div class="overlay" id="modalAI">
+  <div class="modal">
+    <div class="modal-title">🤖 Conectar ao OpenAI</div>
+    <div class="modal-desc">Sua API Key é salva apenas localmente no navegador e nunca sai do seu dispositivo.</div>
+    <div class="fld">
+      <label>API Key</label>
+      <input type="password" id="aiKeyInput" placeholder="sk-…" autocomplete="off">
+    </div>
+    <div class="info-box">A chave é usada apenas para extrair dados do comprovante via GPT-4o Vision.</div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" onclick="closeModal('modalAI')">Cancelar</button>
+      <button class="btn btn-blue" onclick="saveAIKey()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== MODAL: Gmail ====== -->
+<div class="overlay" id="modalOL">
+  <div class="modal">
+    <div class="modal-title">📧 Conectar ao Gmail</div>
+    <div class="modal-desc">Necessário um OAuth Client ID do Google Cloud para enviar via Gmail API.</div>
+    <div class="fld">
+      <label>Google OAuth Client ID</label>
+      <input type="text" id="olClientId" placeholder="xxxxxxxxxx-xxxx.apps.googleusercontent.com" autocomplete="off">
+    </div>
+    <details>
+      <summary>Como obter o Client ID?</summary>
+      <div class="info-box" style="font-size:12px; line-height:1.75;">
+        1. Acesse <strong>console.cloud.google.com</strong><br>
+        2. Crie um projeto e ative a <strong>Gmail API</strong><br>
+        3. <em>APIs &amp; Services → Credentials → Create Credentials → OAuth 2.0 Client ID</em><br>
+        4. Tipo: <strong>Web application</strong><br>
+        5. Authorized redirect URIs: <code id="redirectUriDisplay" style="font-size:11px; word-break:break-all;"></code><br>
+        6. Copie o <strong>Client ID</strong>
+      </div>
+    </details>
+    <div class="modal-foot">
+      <button class="btn btn-gray" onclick="closeModal('modalOL')">Cancelar</button>
+      <button class="btn btn-blue" onclick="connectGmail()">Conectar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== LAYOUT ====== -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- Conexões -->
+    <div class="card">
+      <div class="card-label">Conexões</div>
+
+      <div class="conn-row">
+        <div class="conn-ico ico-ai">🤖</div>
+        <div style="flex:1;">
+          <div class="conn-name">OpenAI</div>
+          <div class="conn-st" id="aiSt">Não conectado</div>
+        </div>
+        <button class="pill-btn cta" id="aiBtn" onclick="openModal('modalAI')">Conectar</button>
+      </div>
+
+      <div class="conn-row">
+        <div class="conn-ico ico-outlook">📧</div>
+        <div style="flex:1;">
+          <div class="conn-name">Gmail</div>
+          <div class="conn-st" id="olSt">Não conectado</div>
+        </div>
+        <button class="pill-btn cta" id="olBtn" onclick="openModal('modalOL')">Conectar</button>
+      </div>
+    </div>
+
+    <!-- Resumo -->
+    <div class="card">
+      <div class="card-label">Resumo</div>
+      <div id="summaryBox">
+        <div style="font-size:13px; color:var(--t3); text-align:center; padding:12px 0;">
+          Carregue um comprovante
+        </div>
+      </div>
+    </div>
+
+    <!-- Valor -->
+    <div class="card" id="amtCard" style="display:none;">
+      <div class="card-label">Valor Total</div>
+      <div style="text-align:center; padding: 6px 0 2px;">
+        <div class="amount-big" id="amtBig">R$ 0,00</div>
+        <div style="font-size:12px; color:var(--t2); margin-top:3px;" id="amtDetail">—</div>
+        <div style="margin-top:8px;" id="amtVerif"></div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- Upload -->
+    <div class="card">
+      <div class="card-label">Comprovante de Pagamento</div>
+      <div class="upload-box" id="uploadBox">
+        <input type="file" id="fileInput" accept="image/*,.pdf" onchange="onFile(event)">
+        <div id="upPlaceholder">
+          <div class="up-ico">🧾</div>
+          <div class="up-txt">Arraste ou clique para selecionar</div>
+          <div class="up-hint">PNG · JPG · PDF</div>
+        </div>
+        <div class="preview-wrap" id="previewWrap">
+          <img id="previewImg" src="" alt="Comprovante">
+          <button class="rm-img" onclick="clearFile(event)">✕</button>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+        <button class="btn btn-gray btn-sm" id="extractBtn" onclick="extractAI()" disabled>
+          🤖 Extrair com IA
+        </button>
+        <button class="btn btn-gray btn-sm" onclick="calcFridays()">
+          📅 Calcular Sextas
+        </button>
+      </div>
+    </div>
+
+    <!-- Formulário -->
+    <div class="card">
+      <div class="card-label">Dados do Email</div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+
+        <div class="row2">
+          <div class="fld">
+            <label>Para</label>
+            <input type="email" id="fTo" value="pborges@uolinc.com" oninput="save()">
+          </div>
+          <div class="fld">
+            <label>Assunto</label>
+            <input type="text" id="fSubj" value="NFE" oninput="save()">
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="fld">
+            <label>Mês de Referência</label>
+            <select id="fMonth" onchange="onMonthChange()">
+              <option value="0">Janeiro</option>
+              <option value="1">Fevereiro</option>
+              <option value="2">Março</option>
+              <option value="3">Abril</option>
+              <option value="4">Maio</option>
+              <option value="5">Junho</option>
+              <option value="6">Julho</option>
+              <option value="7">Agosto</option>
+              <option value="8">Setembro</option>
+              <option value="9">Outubro</option>
+              <option value="10">Novembro</option>
+              <option value="11">Dezembro</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label>Ano</label>
+            <input type="number" id="fYear" min="2020" max="2035" oninput="onMonthChange()">
+          </div>
+        </div>
+
+        <div class="fld">
+          <label>Dias das Consultas (Sextas · clique ✕ para remover)</label>
+          <div class="chips" id="chipsBox">
+            <span class="chips-empty">Clique em "Calcular Sextas" ou use a IA</span>
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="fld">
+            <label>CPF</label>
+            <input type="text" id="fCpf" value="073.551.956-03" oninput="buildBody(); save()">
+          </div>
+          <div class="fld">
+            <label>Assinatura</label>
+            <input type="text" id="fName" value="Paulo Renato" oninput="buildBody(); save()">
+          </div>
+        </div>
+
+        <div class="fld">
+          <label>Corpo do Email</label>
+          <textarea id="fBody" rows="7"></textarea>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Ações -->
+    <div class="card">
+      <div class="actions">
+        <button class="btn btn-red" onclick="resetForm()">↩ Resetar</button>
+        <button class="btn btn-gray" onclick="preview()">👁 Visualizar</button>
+        <div style="flex:1;"></div>
+        <button class="btn btn-green" id="sendBtn" onclick="sendMail()" disabled>✉ Enviar Email</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// =====================================================================
+// CONSTANTES
+// =====================================================================
+const DEF = {
+  to:    'pborges@uolinc.com',
+  subj:  'NFE',
+  cpf:   '073.551.956-03',
+  name:  'Paulo Renato',
+  price: 620
+};
+
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+let uploadedFile   = null;
+let uploadedB64    = null;
+let days           = [];   // [{date, moved, original}]
+let gToken     = null;   // { access_token, expiry }
+const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
+
+// =====================================================================
+// INIT
+// =====================================================================
+window.addEventListener('load', () => {
+  document.getElementById('redirectUriDisplay').textContent = pageUrl();
+  handleGoogleRedirect();   // process token from URL hash after OAuth redirect
+  restoreForm();
+  loadConnections();
+  setDefaultMonth();
+  buildBody();
+});
+
+function pageUrl() { return window.location.href.split('?')[0].split('#')[0]; }
+
+function setDefaultMonth() {
+  const d = new Date();
+  const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  const saved = loadState('form');
+  if (!saved) {
+    document.getElementById('fMonth').value = prev.getMonth();
+    document.getElementById('fYear').value  = prev.getFullYear();
+  }
+}
+
+// =====================================================================
+// STORAGE
+// =====================================================================
+function saveState(key, val) { try { localStorage.setItem('nfe_' + key, JSON.stringify(val)); } catch(_){} }
+function loadState(key)      { try { return JSON.parse(localStorage.getItem('nfe_' + key)); } catch(_){ return null; } }
+function clearState(key)     { localStorage.removeItem('nfe_' + key); }
+
+function save() {
+  saveState('form', {
+    to:    document.getElementById('fTo').value,
+    subj:  document.getElementById('fSubj').value,
+    cpf:   document.getElementById('fCpf').value,
+    name:  document.getElementById('fName').value,
+    month: document.getElementById('fMonth').value,
+    year:  document.getElementById('fYear').value
+  });
+}
+
+function restoreForm() {
+  const s = loadState('form');
+  if (!s) return;
+  if (s.to)    document.getElementById('fTo').value    = s.to;
+  if (s.subj)  document.getElementById('fSubj').value  = s.subj;
+  if (s.cpf)   document.getElementById('fCpf').value   = s.cpf;
+  if (s.name)  document.getElementById('fName').value  = s.name;
+  if (s.month != null) document.getElementById('fMonth').value = s.month;
+  if (s.year)  document.getElementById('fYear').value  = s.year;
+}
+
+// =====================================================================
+// MODAL
+// =====================================================================
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// =====================================================================
+// CONNECTIONS — OpenAI
+// =====================================================================
+function saveAIKey() {
+  const k = document.getElementById('aiKeyInput').value.trim();
+  if (!k.startsWith('sk-')) { toast('API Key inválida. Deve começar com sk-', 'err'); return; }
+  localStorage.setItem('openai_key', k);
+  setAIStatus(true);
+  closeModal('modalAI');
+  toast('OpenAI conectado ✓', 'ok');
+  if (uploadedB64) document.getElementById('extractBtn').disabled = false;
+}
+
+function setAIStatus(on) {
+  const st  = document.getElementById('aiSt');
+  const btn = document.getElementById('aiBtn');
+  st.textContent  = on ? 'Conectado ✓' : 'Não conectado';
+  st.className    = 'conn-st' + (on ? ' ok' : '');
+  btn.textContent = on ? 'Reconectar' : 'Conectar';
+  btn.className   = 'pill-btn ' + (on ? 'done' : 'cta');
+}
+
+// =====================================================================
+// CONNECTIONS — Gmail (OAuth 2.0 redirect / implicit flow)
+// =====================================================================
+function loadConnections() {
+  if (localStorage.getItem('openai_key')) {
+    setAIStatus(true);
+    if (uploadedB64) document.getElementById('extractBtn').disabled = false;
+  }
+  // Restore token from localStorage if still valid
+  const tok = localStorage.getItem('google_token');
+  const exp = +localStorage.getItem('google_token_expiry');
+  if (tok && exp && Date.now() < exp - 60000) {
+    gToken = { access_token: tok, expiry: exp };
+    setOLStatus(true, 'paresobo@gmail.com');
+  }
+}
+
+// Called on page load — reads access_token from URL hash after redirect back from Google
+function handleGoogleRedirect() {
+  if (!window.location.hash.includes('access_token')) return;
+  const params   = new URLSearchParams(window.location.hash.substring(1));
+  const token    = params.get('access_token');
+  const expIn    = +(params.get('expires_in') || 3600);
+  if (!token) return;
+  const expiry = Date.now() + expIn * 1000;
+  gToken = { access_token: token, expiry };
+  localStorage.setItem('google_token',        token);
+  localStorage.setItem('google_token_expiry', expiry);
+  // Clean the token from the URL so it doesn't stay in history
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+
+function connectGmail() {
+  const cid = document.getElementById('olClientId').value.trim();
+  if (cid.length < 20) { toast('Client ID inválido', 'err'); return; }
+  localStorage.setItem('google_client_id', cid);
+  closeModal('modalOL');
+  redirectToGoogle(cid);
+}
+
+function redirectToGoogle(clientId) {
+  const qs = new URLSearchParams({
+    client_id:              clientId || localStorage.getItem('google_client_id'),
+    redirect_uri:           pageUrl(),
+    response_type:          'token',
+    scope:                  GMAIL_SCOPE,
+    include_granted_scopes: 'true',
+    state:                  'gmail'
+  });
+  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + qs;
+}
+
+async function getToken() {
+  const tok = localStorage.getItem('google_token');
+  const exp = +localStorage.getItem('google_token_expiry');
+  if (tok && exp && Date.now() < exp - 60000) return tok;
+  // Token expired or missing — redirect to Google (page will come back after auth)
+  const cid = localStorage.getItem('google_client_id');
+  if (!cid) throw new Error('Configure o Gmail primeiro');
+  redirectToGoogle(cid);
+  throw new Error('Redirecionando para autenticação…');
+}
+
+function setOLStatus(on, email) {
+  const st  = document.getElementById('olSt');
+  const btn = document.getElementById('olBtn');
+  st.textContent  = on ? (email || 'Conectado ✓') : 'Não conectado';
+  st.className    = 'conn-st' + (on ? ' ok' : '');
+  btn.textContent = on ? 'Reconectar' : 'Conectar';
+  btn.className   = 'pill-btn ' + (on ? 'done' : 'cta');
+  document.getElementById('sendBtn').disabled = !on;
+}
+
+// =====================================================================
+// FILE UPLOAD
+// =====================================================================
+const box = document.getElementById('uploadBox');
+box.addEventListener('dragover',  e => { e.preventDefault(); box.classList.add('over'); });
+box.addEventListener('dragleave', () => box.classList.remove('over'));
+box.addEventListener('drop', e => {
+  e.preventDefault(); box.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) loadFile(f);
+});
+
+function onFile(e) { const f = e.target.files[0]; if (f) loadFile(f); }
+
+function loadFile(file) {
+  uploadedFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    uploadedB64 = e.target.result.split(',')[1];
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('previewWrap').style.display = 'block';
+    document.getElementById('upPlaceholder').style.display = 'none';
+    if (localStorage.getItem('openai_key')) {
+      document.getElementById('extractBtn').disabled = false;
+      extractAI(); // dispara automaticamente
+    } else {
+      toast('Comprovante carregado', 'inf');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearFile(e) {
+  e.stopPropagation(); e.preventDefault();
+  uploadedFile = uploadedB64 = null;
+  document.getElementById('previewImg').src = '';
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('upPlaceholder').style.display = '';
+  document.getElementById('extractBtn').disabled = true;
+  document.getElementById('fileInput').value = '';
+}
+
+// =====================================================================
+// OPENAI EXTRACTION
+// =====================================================================
+async function extractAI() {
+  const key = localStorage.getItem('openai_key');
+  if (!key || !uploadedB64) { toast('Conecte o OpenAI e carregue um comprovante', 'err'); return; }
+  const btn = document.getElementById('extractBtn');
+  btn.innerHTML = '<div class="spin"></div> Extraindo…'; btn.disabled = true;
+  try {
+    const mime = uploadedFile?.type || 'image/jpeg';
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        temperature: 0,
+        max_tokens: 600,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text:
+              `Este é um comprovante de pagamento de terapia. Extraia as informações abaixo e retorne SOMENTE um JSON válido, sem texto adicional:\n{\n  "date": "YYYY-MM-DD",\n  "amount": 0.00\n}\n- date: data do comprovante\n- amount: valor total pago (número decimal, ex: 1240.00)` },
+            { type: 'image_url', image_url: { url: `data:${mime};base64,${uploadedB64}`, detail: 'high' } }
+          ]
+        }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const txt = data.choices[0].message.content.trim();
+    const m   = txt.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('Resposta inesperada do modelo');
+    const extracted = JSON.parse(m[0]);
+
+    // Definir mês de referência = mês anterior ao comprovante
+    if (extracted.date) {
+      const rd = new Date(extracted.date + 'T12:00:00');
+      const prev = new Date(rd.getFullYear(), rd.getMonth() - 1, 1);
+      document.getElementById('fMonth').value = prev.getMonth();
+      document.getElementById('fYear').value  = prev.getFullYear();
+      save();
+    }
+
+    // Calcular sextas
+    calcFridays();
+
+    // Ajustar lista de sextas pelo valor do comprovante (fonte da verdade)
+    if (extracted.amount) {
+      const expected = Math.round(extracted.amount / DEF.price);
+      if (expected !== days.length) {
+        // Corta (ou expande) para os primeiros N dias calculados
+        days = days.slice(0, expected);
+        renderChips();
+        buildBody();
+      }
+      updateAmount(extracted.amount, expected);
+      toast(`✓ ${expected} sessão${expected !== 1 ? 'ões' : ''} × R$ 620 = ${fmtCur(extracted.amount)}`, 'ok');
+    } else {
+      toast('Extração concluída. Verifique os dados.', 'ok');
+    }
+
+    updateSummary(extracted);
+
+  } catch(err) {
+    console.error(err);
+    toast('Erro na extração: ' + err.message, 'err');
+  } finally {
+    btn.innerHTML = '🤖 Extrair com IA'; btn.disabled = false;
+  }
+}
+
+// =====================================================================
+// CÁLCULO DE SEXTAS
+// =====================================================================
+function easter(y) {
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,
+        f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+        h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,
+        l=(32+2*e+2*i-h-k)%7,mf=Math.floor((a+11*h+22*l)/451),
+        mo=Math.floor((h+l-7*mf+114)/31), dy=((h+l-7*mf+114)%31)+1;
+  return new Date(y, mo-1, dy);
+}
+
+function holidays(y) {
+  const fixed = [
+    `${y}-01-01`,`${y}-04-21`,`${y}-05-01`,
+    `${y}-09-07`,`${y}-10-12`,`${y}-11-02`,
+    `${y}-11-15`,`${y}-12-25`
+  ];
+  const e  = easter(y);
+  const gf = new Date(e); gf.setDate(gf.getDate()-2);               // Sexta Santa
+  const cm = new Date(e); cm.setDate(cm.getDate()-48);              // Carnaval 2a
+  const ct = new Date(e); ct.setDate(ct.getDate()-47);              // Carnaval 3a
+  const cc = new Date(e); cc.setDate(cc.getDate()+60);              // Corpus Christi
+  const moveable = [gf, cm, ct, cc].map(isoDate);
+  return new Set([...fixed, ...moveable]);
+}
+
+function isoDate(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+
+function fridaysInMonth(y, m) {
+  const result = [];
+  const d = new Date(y, m, 1);
+  while (d.getDay() !== 5) d.setDate(d.getDate()+1);
+  while (d.getMonth() === m) { result.push(new Date(d)); d.setDate(d.getDate()+7); }
+  return result;
+}
+
+function calcFridays() {
+  const month = +document.getElementById('fMonth').value;
+  const year  = +document.getElementById('fYear').value;
+  const hols  = holidays(year);
+  const hols2 = month === 11 ? holidays(year+1) : null;
+  if (hols2) hols2.forEach(h => hols.add(h));
+
+  const raw = fridaysInMonth(year, month);
+  const monthFriSet = new Set(raw.map(isoDate));
+  days = [];
+  raw.forEach(orig => {
+    if (!hols.has(isoDate(orig))) {
+      days.push({ date: new Date(orig), moved: false, original: orig });
+    } else {
+      // Holiday: advance to next non-holiday Friday
+      let d = new Date(orig);
+      d.setDate(d.getDate() + 7);
+      while (hols.has(isoDate(d))) d.setDate(d.getDate() + 7);
+      // Only add if it won't duplicate another scheduled Friday
+      if (!monthFriSet.has(isoDate(d))) {
+        days.push({ date: d, moved: true, original: orig });
+      }
+    }
+  });
+
+  renderChips();
+  buildBody();
+  updateAmount(days.length * DEF.price, days.length);
+  save();
+  toast(`${days.length} sextas em ${MONTHS[month]}/${year}`, 'ok');
+}
+
+function renderChips() {
+  const box = document.getElementById('chipsBox');
+  box.innerHTML = '';
+  if (!days.length) {
+    box.innerHTML = '<span class="chips-empty">Nenhuma sexta encontrada</span>';
+    return;
+  }
+  days.forEach((d, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (d.moved ? ' moved' : '');
+    chip.title = d.moved ? `Feriado em ${pad(d.original.getDate())}/${pad(d.original.getMonth()+1)}, movido` : '';
+    chip.innerHTML = `${pad(d.date.getDate())}/${pad(d.date.getMonth()+1)}<button class="chip-rm" onclick="removeDay(${i})" title="Remover">✕</button>`;
+    box.appendChild(chip);
+  });
+}
+
+function removeDay(i) {
+  days.splice(i, 1);
+  renderChips();
+  buildBody();
+  updateAmount(days.length * DEF.price, days.length);
+}
+
+function onMonthChange() { save(); buildBody(); }
+
+// =====================================================================
+// CORPO DO EMAIL
+// =====================================================================
+function buildBody() {
+  const month = +document.getElementById('fMonth').value;
+  const year  = +document.getElementById('fYear').value;
+  const cpf   = document.getElementById('fCpf').value;
+  const name  = document.getElementById('fName').value;
+  let dStr = '[DIAS]';
+  if (days.length) {
+    const ns = days.map(d => pad(d.date.getDate()));
+    dStr = ns.length === 1 ? ns[0] : ns.slice(0,-1).join(', ') + ' e ' + ns[ns.length-1];
+  }
+  document.getElementById('fBody').value =
+`Boa tarde!
+
+Por favor, podem gerar a Nfe dos dias ${dStr} de ${MONTHS[month]} de ${year}.
+
+Cpf: ${cpf}
+
+Abs,
+${name}`;
+}
+
+// =====================================================================
+// VALOR
+// =====================================================================
+function updateAmount(total, n, receiptAmt, diff) {
+  document.getElementById('amtCard').style.display = '';
+  document.getElementById('amtBig').textContent = fmtCur(total);
+  document.getElementById('amtDetail').textContent = `${n} consulta${n!==1?'s':''} × R$ 620,00`;
+  const v = document.getElementById('amtVerif');
+  if (receiptAmt != null && diff != null) {
+    if (diff === 0) v.innerHTML = `<span class="verif-ok">✓ Valor do comprovante confere</span>`;
+    else            v.innerHTML = `<span class="verif-wrn">⚠ Comprovante: ${fmtCur(receiptAmt)} (${diff>0?'+':''}${diff} sessão)</span>`;
+  } else { v.innerHTML = ''; }
+}
+
+function fmtCur(v) {
+  return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v);
+}
+
+// =====================================================================
+// SUMMARY SIDEBAR
+// =====================================================================
+function updateSummary(ext) {
+  const month = +document.getElementById('fMonth').value;
+  const year  = +document.getElementById('fYear').value;
+  let html = `<div style="display:flex;flex-direction:column;gap:6px;">
+    <div class="sum-row"><span class="sum-k">Mês ref.</span><span class="sum-v">${MONTHS[month]}/${year}</span></div>`;
+  if (ext?.date) {
+    const sd = new Date(ext.date+'T12:00:00').toLocaleDateString('pt-BR');
+    html += `<div class="sum-row"><span class="sum-k">Data comprov.</span><span class="sum-v">${sd}</span></div>`;
+  }
+  if (ext?.amount) {
+    html += `<div class="sum-row"><span class="sum-k">Valor pago</span><span class="sum-v" style="color:var(--green)">${fmtCur(ext.amount)}</span></div>`;
+  }
+  html += `<div class="sum-row"><span class="sum-k">Sextas calc.</span><span class="sum-v">${days.length}</span></div></div>`;
+  document.getElementById('summaryBox').innerHTML = html;
+}
+
+// =====================================================================
+// ENVIAR EMAIL — Gmail API
+// =====================================================================
+function buildMime(to, from, subject, body, attachment) {
+  const boundary = 'nfe_' + Date.now();
+
+  // Encode subject as RFC 2047 base64 (handles accents)
+  const subjB64 = btoa(unescape(encodeURIComponent(subject)));
+  const bodyB64 = btoa(unescape(encodeURIComponent(body)));
+
+  let mime;
+  if (attachment) {
+    mime = [
+      `To: ${to}`,
+      `From: ${from}`,
+      `Subject: =?UTF-8?B?${subjB64}?=`,
+      `MIME-Version: 1.0`,
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      bodyB64,
+      ``,
+      `--${boundary}`,
+      `Content-Type: ${attachment.type}; name="${attachment.name}"`,
+      `Content-Disposition: attachment; filename="${attachment.name}"`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      attachment.data,
+      `--${boundary}--`
+    ].join('\r\n');
+  } else {
+    mime = [
+      `To: ${to}`,
+      `From: ${from}`,
+      `Subject: =?UTF-8?B?${subjB64}?=`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      bodyB64
+    ].join('\r\n');
+  }
+
+  // Base64url encode the entire MIME message
+  return btoa(mime).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function sendMail() {
+  const btn = document.getElementById('sendBtn');
+  btn.innerHTML = '<div class="spin"></div> Enviando…'; btn.disabled = true;
+  try {
+    const token   = await getToken();
+    const to      = document.getElementById('fTo').value;
+    const subject = document.getElementById('fSubj').value;
+    const body    = document.getElementById('fBody').value;
+    const from    = 'paresobo@gmail.com';
+
+    const attachment = (uploadedB64 && uploadedFile) ? {
+      name: uploadedFile.name,
+      type: uploadedFile.type || 'image/jpeg',
+      data: uploadedB64
+    } : null;
+
+    const raw = buildMime(to, from, subject, body, attachment);
+
+    const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw })
+    });
+
+    if (r.ok) {
+      toast('Email enviado com sucesso ✓', 'ok');
+    } else {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${r.status}`);
+    }
+  } catch(e) {
+    console.error(e);
+    toast('Erro ao enviar: ' + e.message, 'err');
+  } finally {
+    btn.innerHTML = '✉ Enviar Email';
+    btn.disabled = !gToken;
+  }
+}
+
+// =====================================================================
+// RESET
+// =====================================================================
+function resetForm() {
+  document.getElementById('fTo').value   = DEF.to;
+  document.getElementById('fSubj').value = DEF.subj;
+  document.getElementById('fCpf').value  = DEF.cpf;
+  document.getElementById('fName').value = DEF.name;
+  setDefaultMonth();
+  days = [];
+  renderChips();
+  buildBody();
+  document.getElementById('amtCard').style.display = 'none';
+  document.getElementById('summaryBox').innerHTML = '<div style="font-size:13px;color:var(--t3);text-align:center;padding:12px 0;">Carregue um comprovante</div>';
+  clearState('form');
+  toast('Formulário resetado', 'inf');
+}
+
+// =====================================================================
+// PREVIEW
+// =====================================================================
+function preview() {
+  const subj = document.getElementById('fSubj').value;
+  const to   = document.getElementById('fTo').value;
+  const body = document.getElementById('fBody').value;
+  const att  = uploadedFile?.name;
+  const win  = window.open('','_blank','width=660,height=520');
+  win.document.write(`<!doctype html><html><head><meta charset="UTF-8">
+    <title>Preview: ${subj}</title>
+    <style>body{margin:0;background:#f2f2f7;font-family:-apple-system,sans-serif;}</style>
+    </head><body>
+    <div style="max-width:600px;margin:24px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.12);">
+      <div style="background:#007aff;color:#fff;padding:18px 22px;">
+        <div style="font-size:12px;opacity:.75;">De: p.borges@uolinc.com → ${to}</div>
+        <div style="font-size:17px;font-weight:700;margin-top:4px;">📧 ${subj}</div>
+        ${att ? `<div style="font-size:12px;opacity:.8;margin-top:3px;">📎 ${att}</div>` : ''}
+      </div>
+      <div style="padding:22px;white-space:pre-wrap;font-size:15px;line-height:1.65;color:#1c1c1e;">${body}</div>
+    </div></body></html>`);
+  win.document.close();
+}
+
+// =====================================================================
+// TOAST
+// =====================================================================
+function toast(msg, type='inf') {
+  const c = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icons = { ok:'✓', err:'✕', inf:'ℹ', wrn:'⚠' };
+  t.innerHTML = `<span>${icons[type]||'ℹ'}</span>${msg}`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.cssText='opacity:0;transform:translateY(8px);transition:.3s'; setTimeout(()=>t.remove(),350); }, 4200);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"/Users/pborges/Library/CloudStorage/OneDrive-UNIVERSOONLINES.A/claude/code_test/.claude\")",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}
